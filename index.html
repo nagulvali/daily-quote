@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Daily Quote</title>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    .card { padding: 18px 20px; }
+    blockquote { margin: 0; font-size: 18px; line-height: 1.4; }
+    .author { margin-top: 10px; opacity: 0.7; font-size: 14px; }
+    .muted { opacity: 0.6; font-size: 12px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <blockquote id="quote">Loading…</blockquote>
+    <div class="author" id="author"></div>
+    <div class="muted" id="mode"></div>
+  </div>
+
+  <script>
+    // Toggle mode:
+    // - "refresh" = new random quote every page refresh
+    // - "daily"   = same quote for the day (changes next day)
+    const MODE = "daily"; // change to "refresh" if you want
+
+    const QUOTE_EL = document.getElementById("quote");
+    const AUTHOR_EL = document.getElementById("author");
+    const MODE_EL = document.getElementById("mode");
+
+    function dayKey() {
+      const d = new Date();
+      // Use local date; if you want IST specifically, we can hardcode timezone logic.
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    async function fetchQuote() {
+      // Free API (no key): https://api.quotable.io
+      const res = await fetch("https://api.quotable.io/random", { cache: "no-store" });
+      if (!res.ok) throw new Error("Quote API failed");
+      return await res.json(); // { content, author, ... }
+    }
+
+    async function loadQuote() {
+      try {
+        MODE_EL.textContent = MODE === "daily" ? "Mode: daily" : "Mode: refresh";
+
+        if (MODE === "daily") {
+          const key = "dailyQuote:" + dayKey();
+          const cached = localStorage.getItem(key);
+          if (cached) {
+            const q = JSON.parse(cached);
+            QUOTE_EL.textContent = `“${q.content}”`;
+            AUTHOR_EL.textContent = q.author ? `— ${q.author}` : "";
+            return;
+          }
+
+          const q = await fetchQuote();
+          localStorage.setItem(key, JSON.stringify({ content: q.content, author: q.author }));
+          QUOTE_EL.textContent = `“${q.content}”`;
+          AUTHOR_EL.textContent = q.author ? `— ${q.author}` : "";
+          return;
+        }
+
+        // MODE === "refresh"
+        const q = await fetchQuote();
+        QUOTE_EL.textContent = `“${q.content}”`;
+        AUTHOR_EL.textContent = q.author ? `— ${q.author}` : "";
+
+      } catch (e) {
+        QUOTE_EL.textContent = "Could not load quote.";
+        AUTHOR_EL.textContent = "";
+        MODE_EL.textContent = "";
+      }
+    }
+
+    loadQuote();
+  </script>
+</body>
+</html>
